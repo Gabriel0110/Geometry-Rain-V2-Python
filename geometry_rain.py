@@ -18,9 +18,9 @@ class GeometryRain(arcade.Window):
         self.enemies_list = arcade.SpriteList()
         self.bonuses_list = arcade.SpriteList()
         self.traps_list = arcade.SpriteList()
+        self.mysteries_list = arcade.SpriteList()
+        self.bullets_list = arcade.SpriteList()
         self.all_sprites = arcade.SpriteList()
-
-        self.enemy_schedule = None
 
         self.paused = False
 
@@ -28,29 +28,48 @@ class GeometryRain(arcade.Window):
         self.score = 0
         self.bonus_count = 0
         self.level = 1
+        self.level_timer = 45
 
         self.BONUS_AVAILABLE = False
         self.BONUS_ACTIVE = False
         self.bonus_start_time = 0
         self.bonus_text = ""
 
-        self.enemy_spawn_time = 0.25
+        self.enemy_spawn_time = 0.5
         self.bonus_spawn_time = 8.0
-        self.trap_spawn_time = 5.0
+        self.trap_spawn_time = 3.0
         self.point_increase_time = 0.5
-        self.level_increase_time = 45.0
+        self.level_increase_time = 45
+
+        self.enemy_collision_radius = 0.0
 
         self.TRAP_HIT = False
 
         # Velocities so you can edit them
         self.enemy_pre_change_velocity = 0
-        self.enemy_velocity = (0, random.randint(-10, -3))
+        self.enemy_velocity = (0, random.randint(-7, -3))
         self.player_velocity = 15
         self.bonus_velocity_change = (0, -2)
         
-
         self.HARDMODE_ACTIVE = False
         self.hardmode_start_time = 0
+        self.hardmode_duration = 13
+
+        self.score_text = None
+        self.bonus_streak_text = None
+        self.level_text = None
+        self.next_level_text = None
+        self.godmode_active_text = None
+
+        # Mystery Sprite variables
+        self.mystery_effect_start_time = 0
+        self.MYSTERY_EFFECT_ACTIVE = False
+        self.effect = 0
+        self.balloon_on = False
+        self.mystery_text = ""
+
+        # FOR TESTING - set to "True" to not lose when hit by enemy.  Otherwise, KEEP "False"
+        self.GOD_MODE = True
 
     def setup(self):
         """Get the game ready to play
@@ -65,8 +84,8 @@ class GeometryRain(arcade.Window):
         self.player.left = self.width / 2
         self.all_sprites.append(self.player)
 
-        # Spawn a new enemy every 0.25 seconds
-        self.enemy_schedule = arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+        # Spawn a new enemy every 0.5 seconds
+        arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
         # Spawn a new bonus every 8 seconds
         arcade.schedule(self.add_bonus, self.bonus_spawn_time)
@@ -74,11 +93,17 @@ class GeometryRain(arcade.Window):
         # Spawn a trap every 5 seconds
         arcade.schedule(self.add_trap, self.trap_spawn_time)
 
+        # Check if mystery sprite can be spawned
+        arcade.schedule(self.add_mystery, 20.0)
+
         # Give points every half a second the player is alive
         arcade.schedule(self.givePoints, self.point_increase_time)
 
         # Increase level and difficulty every 45 seconds
         arcade.schedule(self.increaseLevel, self.level_increase_time)
+
+        # Edit time counter for next level
+        arcade.schedule(self.countdown, 1.0)
 
     def on_update(self, delta_time: float):
         """Update the positions and statuses of all game objects
@@ -94,17 +119,23 @@ class GeometryRain(arcade.Window):
 
         # If hardmode is active, check if it has reached its duration, then end it and reset values to normal
         if self.HARDMODE_ACTIVE:
-            if (time.time() - self.hardmode_start_time) >= 13:
+            if (time.time() - self.hardmode_start_time) >= self.hardmode_duration:
                 self.HARDMODE_ACTIVE = False
                 arcade.set_background_color(arcade.color.SKY_BLUE)
+                self.level += 1
+                self.level_timer = self.level_increase_time
+                arcade.unschedule(self.increaseLevel)
+                arcade.schedule(self.increaseLevel, self.level_increase_time) # reset scheduler to 45 seconds
                 self.enemy_spawn_time += 0.15
-                self.enemy_schedule = arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+                arcade.unschedule(self.add_enemy)
+                arcade.schedule(self.add_enemy, self.enemy_spawn_time)
                 self.hardmode_start_time = 0
                 # enemy_velocity will be set back to normal automatically -- see velocity in add_enemy(), it checks for hardmode
 
-        # Did you hit an enemy or bonus?
+        # Did you hit an enemy?
         if self.player.collides_with_list(self.enemies_list):
-            arcade.close_window()
+            if not self.GOD_MODE:
+                arcade.close_window()
 
         # Check if bonus streak if 5 to award bonus ability
         if self.bonus_count == 5:
@@ -118,7 +149,9 @@ class GeometryRain(arcade.Window):
                 print("Bonus ran out of time -- ending bonus ability.")
                 self.BONUS_ACTIVE = False
                 self.bonus_start_time = 0
-                self.enemy_spawn_time = 0.2
+                self.enemy_spawn_time -= 0.5
+                arcade.unschedule(self.add_enemy)
+                arcade.schedule(self.add_enemy, self.enemy_spawn_time)
                 self.enemy_velocity = self.enemy_pre_change_velocity
                 for enemy in self.enemies_list:
                     enemy.velocity = self.enemy_pre_change_velocity
@@ -143,50 +176,87 @@ class GeometryRain(arcade.Window):
         arcade.start_render()
 
         # Draw scoreboard text
-        arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
-        arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
-        arcade.draw_text("Level: {}".format(str(self.level)), self.width/2 - 75, self.height - 95, arcade.color.BLACK, 18)
+        if not self.HARDMODE_ACTIVE:
+            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
+            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
+            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.BLACK, 18)
+            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.BLACK, 18)
+        else:
+            arcade.set_background_color(arcade.color.BLACK)
+            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 35, arcade.color.WHITE, 18)
+            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 65, arcade.color.WHITE, 18)
+            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.WHITE, 18)
+            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.WHITE, 18)
+
+        # Sanity check to let you know that god mode is active when using it
+        if self.GOD_MODE:
+            if self.HARDMODE_ACTIVE:
+                self.godmode_active_text = arcade.draw_text("GOD MODE ACTIVE", self.width*0.02, self.height - 35, arcade.color.WHITE, 18)
+            else:
+                self.godmode_active_text = arcade.draw_text("GOD MODE ACTIVE", self.width*0.02, self.height - 35, arcade.color.BLACK, 18)
         
         # Draw placeholder text for bonus notification
         if self.BONUS_AVAILABLE:
             arcade.draw_text(self.bonus_text, self.width/2 - 75, self.height*0.05, arcade.color.BLACK, 18)
 
+        if self.MYSTERY_EFFECT_ACTIVE:
+            color = arcade.color.BLACK if not self.HARDMODE_ACTIVE else arcade.color.WHITE
+            if self.effect == 1:
+                # Small player
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+            elif self.effect == 2:
+                # Ballooning
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+            elif self.effect == 3:
+                # Enemies shoot
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+            elif self.effect == 4:
+                pass
+            elif self.effect == 5:
+                pass
+            elif self.effect == 6:
+                pass
+
         self.all_sprites.draw()
 
+    def countdown(self, delta_time: float):
+        self.level_timer -= 1
+
     def givePoints(self, delta_time: float):
-        self.score += 50
+        if self.paused:
+            return
+        else:
+            self.score += 50
 
     def increaseLevel(self, delta_time: float):
         self.level += 1
+        self.level_timer = 45
 
-        # Increase enemy movement speed slightly
-        new_velocity = (0, list(self.enemy_velocity)[1] - 0.7)
-        self.enemy_pre_change_velocity = new_velocity
-        self.enemy_velocity = new_velocity
+        # Increase enemy movement speed slightly if not in hardmode
+        if not self.HARDMODE_ACTIVE:
+            new_velocity = (0, list(self.enemy_velocity)[1] - 0.7)
+            self.enemy_pre_change_velocity = new_velocity
+            self.enemy_velocity = new_velocity
 
-        """ I removed this because hardmode increases spawn time pretty rapidly, so that combined with this would be way too much """
-        # if self.level < 3:
-        #     # Increase enemy spawn rate slightly, but only until level 3. Dont want to get too crazy with it, as hard mode will be rough already
-        #     self.enemy_spawn_time -= 0.05
-
-        # HARD MODE LEVELS
-        if self.level == 4:
+        # HARD MODE
+        if self.level % 4 == 0:
             # Stop all spawning for 5 seconds, give it some suspense, change background color to black, then start hard mode dropping
-            self.hardMode()
-        elif self.level == 7:
             self.hardMode()
 
     def hardMode(self):
         self.HARDMODE_ACTIVE = True
 
-        # Change background color
         arcade.set_background_color(arcade.color.BLACK)
+
+        # Change level timer
+        self.level_timer = self.hardmode_duration
 
         self.hardmode_start_time = time.time()
 
         # Increase spawn rate
-        self.enemy_spawn_time -= 0.15
-        self.enemy_schedule = arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+        self.enemy_spawn_time -= 0.45
+        arcade.unschedule(self.add_enemy)
+        arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
         # Now that HARDMODE_ACTIVE is true, in add_enemy(), the spawn rate will change until set to False
 
@@ -208,10 +278,10 @@ class GeometryRain(arcade.Window):
         if not self.BONUS_ACTIVE:
             if not self.HARDMODE_ACTIVE:
                 # Everything is normal play - set velocity to new random
-                self.enemy_velocity = (0, random.randint(-10, -3))
+                self.enemy_velocity = (0, random.randint(-7, -3))
 
         # First, create the new enemy sprite
-        enemy = EnemySprite("images/enemy_sprite.png", 0.2)
+        enemy = EnemySprite("images/enemy_sprite.png", 0.15)
 
         # Set its position to a random x position and off-screen at the top
         enemy.top = random.randint(self.height, self.height + 80)
@@ -234,6 +304,9 @@ class GeometryRain(arcade.Window):
         if self.BONUS_ACTIVE:
             return
 
+        if self.HARDMODE_ACTIVE:
+            return
+
         bonus = BonusSprite("images/bonus_sprite.png", 0.3)
 
         # Set its position to a random x position and off-screen at the top
@@ -241,7 +314,7 @@ class GeometryRain(arcade.Window):
         bonus.left = random.randint(10, self.width - 10)
 
         # Set its speed to a random speed heading down
-        bonus.velocity = (0, -5) # x doesn't do anything, but y decreases by amount
+        bonus.velocity = (0, -3) # x doesn't do anything, but y decreases by amount
 
         # Add it to the enemies list and all_sprites list
         self.bonuses_list.append(bonus)
@@ -264,6 +337,44 @@ class GeometryRain(arcade.Window):
         self.traps_list.append(trap)
         self.all_sprites.append(trap)
 
+    def add_mystery(self, delta_time: float):
+        if self.paused:
+            return
+
+        spawn_check = random.randint(0, 10)
+        if spawn_check == random.randint(0, 10):
+            mystery = MysterySprite("images/mystery_sprite.png", 0.3)
+
+            # Set its position to a random x position and off-screen at the top
+            mystery.top = random.randint(self.height, self.height + 80)
+            mystery.left = random.randint(10, self.width - 10)
+
+            # Set its speed to a random speed heading down
+            mystery.velocity = (0, -5)
+
+            # Add it to the enemies list and all_sprites list
+            self.mysteries_list.append(mystery)
+            self.all_sprites.append(mystery)
+        else:
+            return # no spawn
+
+    def add_bullet_for_enemy(self, enemy):
+        if self.paused:
+            return
+
+        bullet = Bullet("images/enemy_sprite.png", 0.05)
+
+        # Position the bullet
+        bullet.center_y = enemy.center_y
+        bullet.center_x = enemy.center_x
+
+        # Give the bullet a speed
+        bullet.velocity = (0, -8)
+
+        # Add the bullet to the appropriate lists
+        self.bullets_list.append(bullet)
+        self.all_sprites.append(bullet)
+
     def on_key_press(self, key, modifiers):
         """Handle user keyboard input
         Q: Quit the game
@@ -284,17 +395,21 @@ class GeometryRain(arcade.Window):
 
         if key == arcade.key.SPACE:
             if self.BONUS_AVAILABLE:
-                self.bonus_text = ""
-                self.BONUS_ACTIVE = True
-                self.BONUS_AVAILABLE = False
-                self.bonus_count = 0
-                self.bonus_start_time = time.time()
+                if not self.HARDMODE_ACTIVE: # can't use bonus in hardmode ;)
+                    self.bonus_text = ""
+                    self.BONUS_ACTIVE = True
+                    self.BONUS_AVAILABLE = False
+                    self.bonus_count = 0
+                    self.bonus_start_time = time.time()
 
-                # Ability effect
-                self.enemy_spawn_time = 1.0
-                self.enemy_velocity = self.bonus_velocity
-                for enemy in self.enemies_list:
-                    enemy.velocity = self.bonus_velocity
+                    # Ability effect
+                    self.enemy_spawn_time += 0.5
+                    arcade.unschedule(self.add_enemy)
+                    arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+                    self.enemy_pre_change_velocity = self.enemy_velocity
+                    self.enemy_velocity = self.bonus_velocity
+                    for enemy in self.enemies_list:
+                        enemy.velocity = self.bonus_velocity
 
 
         #if symbol == arcade.key.W or symbol == arcade.key.UP:
@@ -355,11 +470,11 @@ class BonusSprite(arcade.Sprite):
         if self.collides_with_sprite(app.player):
             self.remove_from_sprite_lists()
             app.score += self.getPointValue()
+            app.player_velocity = 15
             if not app.BONUS_AVAILABLE:
                 app.bonus_count += 1
             
             if app.TRAP_HIT:
-                app.player_velocity = 15
                 app.TRAP_HIT = False
     
     def getPointValue(self):
@@ -384,7 +499,109 @@ class TrapSprite(arcade.Sprite):
         point_value = -500 # WILL LOSE 500
         return point_value
 
-# Main code entry point
+class MysterySprite(arcade.Sprite):
+    def update(self):
+        super().update()
+
+        if app.MYSTERY_EFFECT_ACTIVE:
+            if (time.time() - app.mystery_effect_start_time) >= 10:
+                self.removeEffect()
+
+        if self.bottom <= 5:
+            self.remove_from_sprite_lists()
+
+        if self.collides_with_sprite(app.player):
+            # MYSTERY EFFECT
+            self.remove_from_sprite_lists()
+            app.MYSTERY_EFFECT_ACTIVE = True
+            app.effect = random.choice([1, 2, 3, 4, 5, 6])
+            self.activateEffect()
+
+    def activateEffect(self):
+        #app.effect = 2
+        if app.effect == 1:
+            app.mystery_text = "SHRINK RAY"
+            app.player._set_scale(0.1)
+            app.player._set_collision_radius(app.player._get_collision_radius() / 2)
+            app.mystery_effect_start_time = time.time() # last for 10 seconds then go back
+        elif app.effect == 2:
+            app.mystery_text = "MIND THE GAPS"
+            arcade.schedule(self.balloonEffect, 1.0)
+            app.mystery_effect_start_time = time.time()
+            #app.enemy_collision_radius = app.enemies_list[0]._get_collision_radius()
+        elif app.effect == 3:
+            app.mystery_text = "MAKE IT RAIN"
+            arcade.schedule(self.shootBulletsEffect, 1.0)
+            app.mystery_effect_start_time = time.time()
+        elif app.effect == 4:
+            pass
+        elif app.effect == 5:
+            pass
+        elif app.effect == 6:
+            pass
+
+    def removeEffect(self):
+        if app.effect == 1:
+            app.MYSTERY_EFFECT_ACTIVE = False
+            app.player._set_scale(0.25)
+            app.player._set_collision_radius(app.player._get_collision_radius() * 2)
+            app.mystery_effect_start_time = 0
+            app.effect = 0
+        elif app.effect == 2:
+            app.MYSTERY_EFFECT_ACTIVE = False
+            arcade.unschedule(self.balloonEffect)
+            for enemy in app.enemies_list:
+                enemy._set_scale(0.15)
+                #enemy._set_collision_radius(app.enemy_collision_radius)
+            app.mystery_effect_start_time = 0
+            app.effect = 0
+        elif app.effect == 3:
+            app.MYSTERY_EFFECT_ACTIVE = False
+            arcade.unschedule(self.shootBulletsEffect)
+            app.mystery_effect_start_time = 0
+            app.effect = 0
+        elif app.effect == 4:
+            pass
+        elif app.effect == 5:
+            pass
+        elif app.effect == 6:
+            pass
+
+    def balloonEffect(self, delta_time: float):
+        if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
+            return
+
+        if not app.balloon_on:
+            for enemy in app.enemies_list:
+                enemy._set_scale(0.6)
+                #enemy._set_collision_radius(app.enemy_collision_radius * 4)
+            app.balloon_on = True
+        else:
+            for enemy in app.enemies_list:
+                enemy._set_scale(0.15)
+                #enemy._set_collision_radius(app.enemy_collision_radius)
+            app.balloon_on = False
+
+    def shootBulletsEffect(self, delta_time: float):
+        if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
+            return
+
+        for enemy in app.enemies_list:
+            app.add_bullet_for_enemy(enemy)
+
+class Bullet(arcade.Sprite):
+    def update(self):
+        super().update()
+        
+        if self.bottom <= 5:
+            self.remove_from_sprite_lists()
+
+        if self.collides_with_sprite(app.player):
+            self.remove_from_sprite_lists()
+            app.score -= 50
+            app.bonus_count = 0 # reset bonus streak
+            app.player_velocity = 0.5
+
 if __name__ == "__main__":
     app = GeometryRain(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
     app.setup()
