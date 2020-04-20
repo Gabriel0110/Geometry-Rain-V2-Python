@@ -13,4 +13,11 @@ The idea:
 - Every 4 levels is a hard-mode level.  The speed of red circles dropping is incredibly fast -- watch out!
 - See how long you can survive and rack up points.  Points are given every second you are alive.  Combine your survival time with bonus shapes (yellow squares), and see how many points you can get.
 
+In the gif below, you can see much of the above functionality in play, except for the trap shape effect.
+
 ![](geometry_rain_demo_gif.gif)
+
+
+In the next gif below, you can see the hard-mode functionality, in case you don't want to watch the entire first gif to get to that point.
+
+![](geometry_rain_hardmode_gif.gif)
