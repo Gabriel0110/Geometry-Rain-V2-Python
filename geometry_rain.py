@@ -81,7 +81,7 @@ class GeometryRain(arcade.Window):
         arcade.set_background_color(arcade.color.SKY_BLUE)
 
         # Set up the player
-        self.player = arcade.Sprite("images/player_sprite.png", 0.25)
+        self.player = arcade.Sprite("images/player_sprite.png", 0.20)
         self.player.center_y = 40
         self.player.left = self.width / 2
         self.all_sprites.append(self.player)
