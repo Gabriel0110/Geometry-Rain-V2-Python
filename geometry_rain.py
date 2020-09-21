@@ -1,9 +1,11 @@
 import arcade
 import random
 import time
+import pyautogui
 
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 1200
+SCREEN_HEIGHT = round(pyautogui.size()[1]*0.8)
+#SCREEN_HEIGHT = 1200
 SCREEN_TITLE = "Geometry Rain"
 #SCALING = 1.0
 
@@ -407,9 +409,9 @@ class GeometryRain(arcade.Window):
                     arcade.unschedule(self.add_enemy)
                     arcade.schedule(self.add_enemy, self.enemy_spawn_time)
                     self.enemy_pre_change_velocity = self.enemy_velocity
-                    self.enemy_velocity = self.bonus_velocity
+                    self.enemy_velocity = self.bonus_velocity_change
                     for enemy in self.enemies_list:
-                        enemy.velocity = self.bonus_velocity
+                        enemy.velocity = self.bonus_velocity_change
 
 
         #if symbol == arcade.key.W or symbol == arcade.key.UP:
