@@ -120,19 +120,18 @@ class GeometryRain(arcade.Window):
             return
 
         # If hardmode is active, check if it has reached its duration, then end it and reset values to normal
-        if self.HARDMODE_ACTIVE:
-            if (time.time() - self.hardmode_start_time) >= self.hardmode_duration:
-                self.HARDMODE_ACTIVE = False
-                arcade.set_background_color(arcade.color.SKY_BLUE)
-                self.level += 1
-                self.level_timer = self.level_increase_time
-                arcade.unschedule(self.increaseLevel)
-                arcade.schedule(self.increaseLevel, self.level_increase_time) # reset scheduler to 45 seconds
-                self.enemy_spawn_time += 0.15
-                arcade.unschedule(self.add_enemy)
-                arcade.schedule(self.add_enemy, self.enemy_spawn_time)
-                self.hardmode_start_time = 0
-                # enemy_velocity will be set back to normal automatically -- see velocity in add_enemy(), it checks for hardmode
+        # if self.HARDMODE_ACTIVE:
+        #     if (time.time() - self.hardmode_start_time) > self.hardmode_duration:
+        #         self.HARDMODE_ACTIVE = False
+        #         arcade.set_background_color(arcade.color.SKY_BLUE)
+        #         #self.level += 1
+        #         #self.level_timer = self.level_increase_time
+        #         #self.increaseLevel()
+        #         self.enemy_spawn_time += 0.15
+        #         arcade.unschedule(self.add_enemy)
+        #         arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+        #         self.hardmode_start_time = 0
+        #         # enemy_velocity will be set back to normal automatically -- see velocity in add_enemy(), it checks for hardmode
 
         # Did you hit an enemy?
         if self.player.collides_with_list(self.enemies_list):
@@ -224,8 +223,23 @@ class GeometryRain(arcade.Window):
     def countdown(self, delta_time: float):
         if not self.paused:
             self.level_timer -= 1
-            if self.level_timer == 0:
-                self.increaseLevel()
+            if self.level_timer < 0 and self.HARDMODE_ACTIVE == True:
+                self.HARDMODE_ACTIVE = False
+                arcade.set_background_color(arcade.color.SKY_BLUE)
+                self.enemy_spawn_time = 0.5
+                arcade.unschedule(self.add_enemy)
+                arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+                self.hardmode_start_time = 0
+                try:
+                    self.increaseLevel()
+                except Exception as e:
+                    print(f"ERROR: {e}")
+                # enemy_velocity will be set back to normal automatically -- see velocity in add_enemy(), it checks for hardmode
+            elif self.level_timer < 0 and self.HARDMODE_ACTIVE == False:
+                try:
+                    self.increaseLevel()
+                except Exception as e:
+                    print(f"ERROR: {e}")
         else:
             return
 
@@ -237,18 +251,19 @@ class GeometryRain(arcade.Window):
 
     def increaseLevel(self):
         self.level += 1
-        self.level_timer = 45
+
+        # HARD MODE
+        if self.level % 4 == 0 and self.HARDMODE_ACTIVE == False:
+            # Stop all spawning for 5 seconds, give it some suspense, change background color to black, then start hard mode dropping
+            self.hardMode()
+        else:
+            self.level_timer = 45
 
         # Increase enemy movement speed slightly if not in hardmode
-        if not self.HARDMODE_ACTIVE:
+        if self.HARDMODE_ACTIVE == False:
             new_velocity = (0, list(self.enemy_velocity)[1] - 0.7)
             self.enemy_pre_change_velocity = new_velocity
             self.enemy_velocity = new_velocity
-
-        # HARD MODE
-        if self.level % 4 == 0:
-            # Stop all spawning for 5 seconds, give it some suspense, change background color to black, then start hard mode dropping
-            self.hardMode()
 
     def hardMode(self):
         self.HARDMODE_ACTIVE = True
@@ -261,7 +276,7 @@ class GeometryRain(arcade.Window):
         self.hardmode_start_time = time.time()
 
         # Increase spawn rate
-        self.enemy_spawn_time -= 0.45
+        self.enemy_spawn_time = 0.05
         arcade.unschedule(self.add_enemy)
         arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
