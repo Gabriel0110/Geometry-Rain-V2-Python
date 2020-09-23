@@ -102,7 +102,7 @@ class GeometryRain(arcade.Window):
         arcade.schedule(self.givePoints, self.point_increase_time)
 
         # Increase level and difficulty every 45 seconds
-        arcade.schedule(self.increaseLevel, self.level_increase_time)
+        #arcade.schedule(self.increaseLevel, self.level_increase_time)
 
         # Edit time counter for next level
         arcade.schedule(self.countdown, 1.0)
@@ -222,7 +222,12 @@ class GeometryRain(arcade.Window):
         self.all_sprites.draw()
 
     def countdown(self, delta_time: float):
-        self.level_timer -= 1
+        if not self.paused:
+            self.level_timer -= 1
+            if self.level_timer == 0:
+                self.increaseLevel()
+        else:
+            return
 
     def givePoints(self, delta_time: float):
         if self.paused:
@@ -230,7 +235,7 @@ class GeometryRain(arcade.Window):
         else:
             self.score += 50
 
-    def increaseLevel(self, delta_time: float):
+    def increaseLevel(self):
         self.level += 1
         self.level_timer = 45
 
