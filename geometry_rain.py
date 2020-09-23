@@ -2,6 +2,7 @@ import arcade
 import random
 import time
 import pyautogui
+import pickle
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = round(pyautogui.size()[1]*0.8)
@@ -28,6 +29,7 @@ class GeometryRain(arcade.Window):
 
         # Init score for scoreboard
         self.score = 0
+        self.highscore = 0
         self.bonus_count = 0
         self.level = 1
         self.level_timer = 45
@@ -71,11 +73,19 @@ class GeometryRain(arcade.Window):
         self.mystery_text = ""
 
         # FOR TESTING - set to "True" to not lose when hit by enemy.  Otherwise, KEEP "False"
-        self.GOD_MODE = True
+        self.GOD_MODE = False
 
     def setup(self):
         """Get the game ready to play
         """
+        # See if there is a previous score to load for high score
+        try:
+            with open('saved_score.dat', 'rb') as file:
+                self.highscore = pickle.load(file)
+        except Exception as e:
+            print(f"Error attempting to load saved highscore: {e}")
+            print("Setting highscore to 0.")
+            self.highscore = 0
 
         # Set the background color
         arcade.set_background_color(arcade.color.SKY_BLUE)
@@ -119,23 +129,13 @@ class GeometryRain(arcade.Window):
         if self.paused:
             return
 
-        # If hardmode is active, check if it has reached its duration, then end it and reset values to normal
-        # if self.HARDMODE_ACTIVE:
-        #     if (time.time() - self.hardmode_start_time) > self.hardmode_duration:
-        #         self.HARDMODE_ACTIVE = False
-        #         arcade.set_background_color(arcade.color.SKY_BLUE)
-        #         #self.level += 1
-        #         #self.level_timer = self.level_increase_time
-        #         #self.increaseLevel()
-        #         self.enemy_spawn_time += 0.15
-        #         arcade.unschedule(self.add_enemy)
-        #         arcade.schedule(self.add_enemy, self.enemy_spawn_time)
-        #         self.hardmode_start_time = 0
-        #         # enemy_velocity will be set back to normal automatically -- see velocity in add_enemy(), it checks for hardmode
-
         # Did you hit an enemy?
         if self.player.collides_with_list(self.enemies_list):
             if not self.GOD_MODE:
+                # Save the highscore and end the game
+                if self.score >= self.highscore:
+                    with open('saved_score.dat', 'wb') as file:
+                        pickle.dump(self.score, file)
                 arcade.close_window()
 
         # Check if bonus streak if 5 to award bonus ability
@@ -178,16 +178,18 @@ class GeometryRain(arcade.Window):
 
         # Draw scoreboard text
         if not self.HARDMODE_ACTIVE:
-            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
-            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
+            self.highscore_text = arcade.draw_text("HIGH SCORE: {}".format(str(self.highscore)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
+            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
+            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 95, arcade.color.BLACK, 18)
             self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.BLACK, 18)
             self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.BLACK, 18)
         else:
             arcade.set_background_color(arcade.color.BLACK)
-            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 35, arcade.color.WHITE, 18)
-            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 65, arcade.color.WHITE, 18)
-            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.WHITE, 18)
-            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.WHITE, 18)
+            self.highscore_text = arcade.draw_text("HIGH SCORE: {}".format(str(self.highscore)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
+            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
+            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 95, arcade.color.BLACK, 18)
+            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.BLACK, 18)
+            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.BLACK, 18)
 
         # Sanity check to let you know that god mode is active when using it
         if self.GOD_MODE:
@@ -248,6 +250,8 @@ class GeometryRain(arcade.Window):
             return
         else:
             self.score += 50
+            if self.score > self.highscore:
+                self.highscore = self.score
 
     def increaseLevel(self):
         self.level += 1
