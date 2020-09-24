@@ -137,6 +137,7 @@ class GeometryRain(arcade.View):
         self.traps_list = arcade.SpriteList()
         self.mysteries_list = arcade.SpriteList()
         self.bullets_list = arcade.SpriteList()
+        self.player_bullets = arcade.SpriteList()
         self.all_sprites = arcade.SpriteList()
 
         self.paused = False
@@ -186,6 +187,8 @@ class GeometryRain(arcade.View):
         self.balloon_on = False
         self.mystery_text = ""
         self.follow_effect_active = False
+        self.shrinkray20 = False
+        self.player_shoot_active = False
 
         # FOR TESTING - set to "True" to not lose when hit by enemy.  Otherwise, KEEP "False"
         self.GOD_MODE = False
@@ -252,6 +255,7 @@ class GeometryRain(arcade.View):
                 if self.score >= self.highscore:
                     with open('saved_score.dat', 'wb') as file:
                         pickle.dump(self.score, file)
+                time.sleep(2)
                 game.show_view(MainMenu())
 
         # Check if bonus streak if 5 to award bonus ability
@@ -275,6 +279,10 @@ class GeometryRain(arcade.View):
 
         if self.follow_effect_active == True:
             self.followEffect()
+
+        if self.shrinkray20 == True:
+            for enemy in self.enemies_list:
+                enemy._set_scale(0.05)
 
         # Check if mystery duration ran out
         if self.MYSTERY_EFFECT_ACTIVE:
@@ -345,9 +353,11 @@ class GeometryRain(arcade.View):
                 # Enemies follow
                 arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
             elif self.effect == 5:
-                pass
+                # Enemies shrink
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
             elif self.effect == 6:
-                pass
+                # Player shoots
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
 
         self.all_sprites.draw()
 
@@ -569,8 +579,8 @@ class GeometryRain(arcade.View):
         if self.paused:
             return
 
-        spawn_check = random.randint(0, 4)
-        if spawn_check == random.randint(0, 4):
+        spawn_check = random.randint(0, 3)
+        if spawn_check == random.randint(0, 3):
             if self.HARDMODE_ACTIVE == False:
                 self.MYSTERY_EFFECT_ACTIVE = True
                 self.effect = random.choice([1, 2, 3, 4, 5, 6])
@@ -596,7 +606,6 @@ class GeometryRain(arcade.View):
         self.all_sprites.append(bullet)
 
     def activateEffect(self):
-        #self.effect = 4
         if self.effect == 1:
             self.mystery_text = "SHRINK RAY"
             self.player._set_scale(0.1)
@@ -615,9 +624,14 @@ class GeometryRain(arcade.View):
             self.follow_effect_active = True
             self.mystery_effect_start_time = time.time()
         elif self.effect == 5:
-            pass
+            self.mystery_text = "SHRINK RAY 2.0"
+            self.shrinkray20 = True
+            self.mystery_effect_start_time = time.time() # last for 10 seconds then go back
         elif self.effect == 6:
-            pass
+            self.mystery_text = "PEW PEW"
+            self.player_shoot_active = True
+            arcade.schedule(self.playerShootEffect, 2.0)
+            self.mystery_effect_start_time = time.time() # last for 10 seconds then go back
 
     def removeEffect(self):
         if self.effect == 1:
@@ -647,9 +661,16 @@ class GeometryRain(arcade.View):
             self.player.left = self.width/2 - 75
             self.player.center_y = 40
         elif self.effect == 5:
-            pass
+            self.shrinkray20 = False
+            for enemy in self.enemies_list:
+                enemy._set_scale(0.15)
+            self.mystery_effect_start_time = 0
+            self.effect = 0
         elif self.effect == 6:
-            pass
+            self.player_shoot_active = False
+            arcade.unschedule(self.playerShootEffect)
+            self.mystery_effect_start_time = 0
+            self.effect = 0
 
     def balloonEffect(self, delta_time: float):
         if self.paused or not self.MYSTERY_EFFECT_ACTIVE:
@@ -681,7 +702,38 @@ class GeometryRain(arcade.View):
         arcade.unschedule(self.followPlayer)
         for enemy in self.enemies_list:
             enemy.follow(self.player)
-    
+
+    def playerShootEffect(self, delta_time: float):
+        global app
+        import math
+        if self.player_shoot_active == False:
+            arcade.unschedule(self.playerShootEffect)
+            return
+        else:
+            # shoot
+            degrees = [90.6, 90.55, 90.5, 90.45, 90.4, 90.35, 90.3, 90.25, 90.2, 90.15, 90.1, 90.05, 90.0]
+            start_degree = 90.6
+            change = 0.05
+            for i in range(43):
+                degrees.append(start_degree-change)
+                start_degree -= change
+
+            for degree in degrees:
+                bullet = PlayerBullet("images/player_sprite.png", 0.15)
+                bullet_speed = 10
+
+                start_x = self.player.center_x
+                start_y = self.player.center_y
+                bullet.center_x = start_x
+                bullet.center_y = start_y
+
+                bullet.angle = degree
+                bullet.change_x = math.cos(degree) * bullet_speed
+                bullet.change_y = math.sin(degree) * bullet_speed
+
+                self.player_bullets.append(bullet)
+                self.all_sprites.append(bullet)
+
 
 class EnemySprite(arcade.Sprite):
     def update(self):
@@ -694,6 +746,9 @@ class EnemySprite(arcade.Sprite):
         if self.bottom <= 5:
             self.remove_from_sprite_lists()
             #app.score += self.getPointValue()
+
+        if self.collides_with_list(app.player_bullets):
+            self.remove_from_sprite_lists()
 
     def follow(self, player):
         import math
@@ -774,6 +829,18 @@ class Bullet(arcade.Sprite):
             app.score -= 50
             app.bonus_count = 0 # reset bonus streak
             app.player_velocity = 0.5
+
+class PlayerBullet(arcade.Sprite):
+    def update(self):
+        super().update()
+        global app
+
+        if self.top > app.height:
+            self.remove_from_sprite_lists()
+        if self.left < 0:
+            self.remove_from_sprite_lists()
+        if self.right > app.width:
+            self.remove_from_sprite_lists()
 
 def start():
     global game
