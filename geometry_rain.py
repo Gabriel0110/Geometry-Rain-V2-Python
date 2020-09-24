@@ -11,6 +11,7 @@ SCREEN_HEIGHT = round(pyautogui.size()[1]*0.8)
 SCREEN_TITLE = "Geometry Rain"
 #SCALING = 1.0
 app = None
+game = None
 
 def getButtonThemes():
     theme = Theme()
@@ -174,6 +175,7 @@ class GeometryRain(arcade.View):
         arcade.schedule(self.countdown, 1.0)
 
     def on_update(self, delta_time: float):
+        global app, game
         """Update the positions and statuses of all game objects
         If paused, do nothing
 
@@ -192,7 +194,7 @@ class GeometryRain(arcade.View):
                 if self.score >= self.highscore:
                     with open('saved_score.dat', 'wb') as file:
                         pickle.dump(self.score, file)
-                arcade.close_window()
+                game.show_view(MainMenu())
 
         # Check if bonus streak if 5 to award bonus ability
         if self.bonus_count == 5:
@@ -708,8 +710,12 @@ class Bullet(arcade.Sprite):
             app.bonus_count = 0 # reset bonus streak
             app.player_velocity = 0.5
 
-if __name__ == "__main__":
+def start():
+    global game
     game = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
     main_menu = MainMenu()
     game.show_view(main_menu)
     arcade.run()
+
+if __name__ == "__main__":
+    start()
