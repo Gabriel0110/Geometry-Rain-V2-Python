@@ -255,7 +255,6 @@ class GeometryRain(arcade.View):
                 if self.score >= self.highscore:
                     with open('saved_score.dat', 'wb') as file:
                         pickle.dump(self.score, file)
-                time.sleep(2)
                 game.show_view(MainMenu())
 
         # Check if bonus streak if 5 to award bonus ability
@@ -287,7 +286,7 @@ class GeometryRain(arcade.View):
         # Check if mystery duration ran out
         if self.MYSTERY_EFFECT_ACTIVE:
             if self.follow_effect_active:
-                if (time.time() - self.mystery_effect_start_time) >= 7:
+                if (time.time() - self.mystery_effect_start_time) >= 10:
                     self.removeEffect()
             else:
                 if (time.time() - self.mystery_effect_start_time) >= 10:
@@ -336,28 +335,28 @@ class GeometryRain(arcade.View):
         
         # Draw placeholder text for bonus notification
         if self.BONUS_AVAILABLE:
-            arcade.draw_text(self.bonus_text, self.width/2 - 75, self.height*0.05, arcade.color.BLACK, 18)
+            arcade.draw_text(self.bonus_text, self.width/2, self.height*0.05, arcade.color.BLACK, 18, anchor_x="center")
 
         if self.MYSTERY_EFFECT_ACTIVE:
             color = arcade.color.BLACK if not self.HARDMODE_ACTIVE else arcade.color.WHITE
             if self.effect == 1:
                 # Small player
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
             elif self.effect == 2:
                 # Ballooning
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
             elif self.effect == 3:
                 # Enemies shoot
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
             elif self.effect == 4:
                 # Enemies follow
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
             elif self.effect == 5:
                 # Enemies shrink
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
             elif self.effect == 6:
                 # Player shoots
-                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
+                arcade.draw_text(self.mystery_text, self.width/2, self.height/2 + 50, color, 18, anchor_x="center")
 
         self.all_sprites.draw()
 
@@ -467,7 +466,7 @@ class GeometryRain(arcade.View):
         self.level += 1
 
         # HARD MODE
-        if self.level % 4 == 0 and self.HARDMODE_ACTIVE == False:
+        if self.level % 3 == 0 and self.HARDMODE_ACTIVE == False:
             # Stop all spawning for 5 seconds, give it some suspense, change background color to black, then start hard mode dropping
             self.hardMode()
         else:
