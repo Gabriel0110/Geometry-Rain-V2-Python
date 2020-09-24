@@ -71,6 +71,7 @@ class GeometryRain(arcade.Window):
         self.effect = 0
         self.balloon_on = False
         self.mystery_text = ""
+        self.follow_effect_active = False
 
         # FOR TESTING - set to "True" to not lose when hit by enemy.  Otherwise, KEEP "False"
         self.GOD_MODE = False
@@ -157,10 +158,17 @@ class GeometryRain(arcade.Window):
                 for enemy in self.enemies_list:
                     enemy.velocity = self.enemy_pre_change_velocity
 
+        if self.follow_effect_active == True:
+            self.followEffect()
+
         # Check if mystery duration ran out
         if self.MYSTERY_EFFECT_ACTIVE:
-            if (time.time() - self.mystery_effect_start_time) >= 10:
-                self.removeEffect()
+            if self.follow_effect_active:
+                if (time.time() - self.mystery_effect_start_time) >= 7:
+                    self.removeEffect()
+            else:
+                if (time.time() - self.mystery_effect_start_time) >= 10:
+                    self.removeEffect()
 
         # Update everything
         self.all_sprites.update()
@@ -219,7 +227,8 @@ class GeometryRain(arcade.Window):
                 # Enemies shoot
                 arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
             elif self.effect == 4:
-                pass
+                # Enemies follow
+                arcade.draw_text(self.mystery_text, self.width/2 - 75, self.height/2 + 50, color, 18)
             elif self.effect == 5:
                 pass
             elif self.effect == 6:
@@ -263,17 +272,14 @@ class GeometryRain(arcade.Window):
                     for enemy in self.enemies_list:
                         enemy.velocity = self.bonus_velocity_change
 
-
-        #if symbol == arcade.key.W or symbol == arcade.key.UP:
-        #    self.player.change_y = 15
-
-        #if symbol == arcade.key.S or symbol == arcade.key.DOWN:
-        #    self.player.change_y = -15
-
         if key == arcade.key.A or key == arcade.key.LEFT:
             self.player.change_x = -self.player_velocity
         elif key == arcade.key.D or key == arcade.key.RIGHT:
             self.player.change_x = self.player_velocity
+        elif (key == arcade.key.W or key == arcade.key.UP) and self.follow_effect_active:
+            self.player.change_y = self.player_velocity
+        elif (key == arcade.key.S or key == arcade.key.DOWN) and self.follow_effect_active:
+            self.player.change_y = -self.player_velocity
 
     def on_key_release(self, key: int, modifiers: int):
         """Undo movement vectors when movement keys are released
@@ -443,24 +449,11 @@ class GeometryRain(arcade.Window):
         if self.paused:
             return
 
-        spawn_check = random.randint(0, 5)
-        if spawn_check == random.randint(0, 5):
+        spawn_check = random.randint(0, 4)
+        if spawn_check == random.randint(0, 4):
             self.MYSTERY_EFFECT_ACTIVE = True
             self.effect = random.choice([1, 2, 3, 4, 5, 6])
             self.activateEffect()
-
-            # mystery = MysterySprite("images/mystery_sprite.png", 0.3)
-
-            # # Set its position to a random x position and off-screen at the top
-            # mystery.top = random.randint(self.height, self.height + 80)
-            # mystery.left = random.randint(10, self.width - 10)
-
-            # # Set its speed to a random speed heading down
-            # mystery.velocity = (0, -5)
-
-            # # Add it to the enemies list and all_sprites list
-            # self.mysteries_list.append(mystery)
-            # self.all_sprites.append(mystery)
         else:
             return # no spawn
 
@@ -482,6 +475,7 @@ class GeometryRain(arcade.Window):
         self.all_sprites.append(bullet)
 
     def activateEffect(self):
+        #self.effect = 4
         if self.effect == 1:
             self.mystery_text = "SHRINK RAY"
             self.player._set_scale(0.1)
@@ -491,13 +485,14 @@ class GeometryRain(arcade.Window):
             self.mystery_text = "MIND THE GAPS"
             arcade.schedule(self.balloonEffect, 1.0)
             self.mystery_effect_start_time = time.time()
-            #app.enemy_collision_radius = app.enemies_list[0]._get_collision_radius()
         elif self.effect == 3:
             self.mystery_text = "MAKE IT RAIN"
             arcade.schedule(self.shootBulletsEffect, 1.0)
             self.mystery_effect_start_time = time.time()
         elif self.effect == 4:
-            pass
+            self.mystery_text = "RUN...\n(you can move up and down)"
+            self.follow_effect_active = True
+            self.mystery_effect_start_time = time.time()
         elif self.effect == 5:
             pass
         elif self.effect == 6:
@@ -515,7 +510,6 @@ class GeometryRain(arcade.Window):
             self.MYSTERY_EFFECT_ACTIVE = False
             for enemy in self.enemies_list:
                 enemy._set_scale(0.15)
-                #enemy._set_collision_radius(app.enemy_collision_radius)
             self.mystery_effect_start_time = 0
             self.effect = 0
         elif self.effect == 3:
@@ -524,7 +518,13 @@ class GeometryRain(arcade.Window):
             self.mystery_effect_start_time = 0
             self.effect = 0
         elif self.effect == 4:
-            pass
+            self.follow_effect_active = False
+            self.mystery_effect_start_time = 0
+            self.effect = 0
+            for sprite in self.enemies_list:
+                sprite.remove_from_sprite_lists()
+            self.player.left = self.width/2 - 75
+            self.player.center_y = 40
         elif self.effect == 5:
             pass
         elif self.effect == 6:
@@ -553,6 +553,11 @@ class GeometryRain(arcade.Window):
             for enemy in self.enemies_list:
                 self.add_bullet_for_enemy(enemy)
 
+    def followEffect(self):
+        for enemy in self.enemies_list:
+            enemy.follow(self.player)
+    
+
 class EnemySprite(arcade.Sprite):
     def update(self):
         """Update the position of the sprite"""
@@ -564,6 +569,32 @@ class EnemySprite(arcade.Sprite):
         if self.bottom <= 5:
             self.remove_from_sprite_lists()
             #app.score += self.getPointValue()
+
+    def follow(self, player):
+        import math
+        self.center_x += self.change_x
+        self.center_y += self.change_y
+
+        # Random 50% chance that we'll change from our old direction and
+        # then re-aim toward the player
+        if random.randrange(1) == 0:
+            start_x = self.center_x
+            start_y = self.center_y
+
+            # Get the destination location for the bullet
+            dest_x = player.center_x
+            dest_y = player.center_y
+
+            # Do math to calculate how to get the bullet to the destination.
+            # Calculation the angle in radians between the start points
+            # and end points. This is the angle the bullet will travel.
+            x_diff = dest_x - start_x
+            y_diff = dest_y - start_y
+            angle = math.atan2(y_diff, x_diff)
+
+            # Taking into account the angle, calculate our change_x
+            # and change_y. Velocity is how fast the bullet travels.
+            self.velocity = (math.cos(angle) * 1.0, math.sin(angle) * 1.0)
 
 
 class BonusSprite(arcade.Sprite):
