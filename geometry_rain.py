@@ -3,19 +3,74 @@ import random
 import time
 import pyautogui
 import pickle
+from arcade.gui import *
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = round(pyautogui.size()[1]*0.8)
 #SCREEN_HEIGHT = 1200
 SCREEN_TITLE = "Geometry Rain"
 #SCALING = 1.0
+app = None
 
-class GeometryRain(arcade.Window):
+def getButtonThemes():
+    theme = Theme()
+    theme.set_font(24, arcade.color.BLACK)
+    normal = "images/Normal.png"
+    hover = "images/Hover.png"
+    clicked = "images/Clicked.png"
+    locked = "images/Locked.png"
+    theme.add_button_textures(normal, hover, clicked, locked)
+    return theme
 
-    def __init__(self, width, height, title):
+class PlayButton(TextButton):
+    def __init__(self, view, x=0, y=0, width=100, height=40, text="Play", theme=None):
+        super().__init__(x, y, width, height, text, theme=theme)
+        self.view = view
+        self.text = text
+
+    def on_press(self):
+        global game, app
+        app = GeometryRain()
+        game.show_view(app)
+        app.setup()
+
+class ExitButton(TextButton):
+    def __init__(self, view, x=0, y=0, width=100, height=40, text="Exit", theme=None):
+        super().__init__(x, y, width, height, text, theme=theme)
+
+    def on_press(self):
+        #self.pressed = True
+        exit()
+
+class MainMenu(arcade.View):
+    def __init__(self):
+        super().__init__()
+
+        self.theme = getButtonThemes()
+        self.button_list.append(PlayButton(self, SCREEN_WIDTH*0.25, SCREEN_HEIGHT*0.25, 110, 50, theme=self.theme))
+        self.button_list.append(ExitButton(self, SCREEN_WIDTH*0.75, SCREEN_HEIGHT*0.25, 110, 50, theme=self.theme))
+
+        self.background = arcade.load_texture("images/title_screen.jpg")
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.GRAY)
+
+    def on_draw(self):
+        arcade.start_render()
+        scale = SCREEN_WIDTH / self.background.width
+        arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
+        arcade.draw_text("GEOMETRY RAIN", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.7, arcade.color.WHITE, font_size=60, font_name='GOTHIC', anchor_x="center", bold=True)
+        for button in self.button_list:
+            button.draw()
+
+class GeometryRain(arcade.View):
+    def __init__(self):
         """Initialize the game
         """
-        super().__init__(width, height, title)
+        super().__init__()
+
+        self.height = SCREEN_HEIGHT
+        self.width = SCREEN_WIDTH
 
         # Set up the empty sprite lists
         self.enemies_list = arcade.SpriteList()
@@ -352,6 +407,8 @@ class GeometryRain(arcade.Window):
             self.enemy_velocity = new_velocity
 
     def hardMode(self):
+        self.MYSTERY_EFFECT_ACTIVE = False
+        self.removeEffect()
         self.HARDMODE_ACTIVE = True
 
         arcade.set_background_color(arcade.color.BLACK)
@@ -451,9 +508,10 @@ class GeometryRain(arcade.Window):
 
         spawn_check = random.randint(0, 4)
         if spawn_check == random.randint(0, 4):
-            self.MYSTERY_EFFECT_ACTIVE = True
-            self.effect = random.choice([1, 2, 3, 4, 5, 6])
-            self.activateEffect()
+            if self.HARDMODE_ACTIVE == False:
+                self.MYSTERY_EFFECT_ACTIVE = True
+                self.effect = random.choice([1, 2, 3, 4, 5, 6])
+                self.activateEffect()
         else:
             return # no spawn
 
@@ -651,6 +709,7 @@ class Bullet(arcade.Sprite):
             app.player_velocity = 0.5
 
 if __name__ == "__main__":
-    app = GeometryRain(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    app.setup()
+    game = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    main_menu = MainMenu()
+    game.show_view(main_menu)
     arcade.run()
