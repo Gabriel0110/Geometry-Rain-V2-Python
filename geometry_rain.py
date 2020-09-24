@@ -5,7 +5,7 @@ import pyautogui
 import pickle
 from arcade.gui import *
 
-SCREEN_WIDTH = 1000
+SCREEN_WIDTH = 1050
 SCREEN_HEIGHT = round(pyautogui.size()[1]*0.8)
 #SCREEN_HEIGHT = 1200
 SCREEN_TITLE = "Geometry Rain"
@@ -43,6 +43,27 @@ class ExitButton(TextButton):
         #self.pressed = True
         exit()
 
+class ContinueButton(TextButton):
+    def __init__(self, view, x=0, y=0, width=120, height=40, text="Continue", theme=None):
+        super().__init__(x, y, width, height, text, theme=theme)
+        self.view = view
+
+    def on_press(self):
+        global app
+        app.paused = False
+        game_view = self.view
+        game.show_view(game_view)
+        arcade.set_background_color(arcade.color.SKY_BLUE)
+
+class QuitButton(TextButton):
+    def __init__(self, view, x=0, y=0, width=150, height=40, text="Main Menu", theme=None):
+        super().__init__(x, y, width, height, text, theme=theme)
+
+    def on_press(self):
+        global game, app
+        app.paused = False
+        game.show_view(MainMenu())
+
 class MainMenu(arcade.View):
     def __init__(self):
         super().__init__()
@@ -61,6 +82,43 @@ class MainMenu(arcade.View):
         scale = SCREEN_WIDTH / self.background.width
         arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
         arcade.draw_text("GEOMETRY RAIN", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.7, arcade.color.WHITE, font_size=60, font_name='GOTHIC', anchor_x="center", bold=True)
+        for button in self.button_list:
+            button.draw()
+
+class PauseMenu(arcade.View):
+    # For pause and unpause to work, the call to PauseMenu must have self sent with it, so pause = PauseMenu(self), then self.window.show_view(pause)
+    def __init__(self, game_view):
+        super().__init__()
+
+        self.game_view = game_view
+
+        self.theme = getButtonThemes()
+        self.button_list.append(ContinueButton(self.game_view, SCREEN_WIDTH*0.25, SCREEN_HEIGHT*0.25, 200, 50, theme=self.theme))
+        self.button_list.append(QuitButton(self, SCREEN_WIDTH*0.75, SCREEN_HEIGHT*0.25, 200, 50, theme=self.theme))
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.ORANGE)
+
+    def on_draw(self):
+        arcade.start_render()
+
+        # draw an orange filter over him
+        arcade.draw_lrtb_rectangle_filled(left=SCREEN_WIDTH*0,
+                                          right=SCREEN_WIDTH,
+                                          top=SCREEN_HEIGHT,
+                                          bottom=SCREEN_HEIGHT*0,
+                                          color=arcade.color.ORANGE + (200,))
+
+        arcade.draw_text("PAUSED", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.6, arcade.color.BLACK, font_size=40, anchor_x="center")
+
+        # Show tip to return or reset
+        arcade.draw_text("Press 'Continue' to return to the game.",
+                         SCREEN_WIDTH/2,
+                         SCREEN_HEIGHT/2,
+                         arcade.color.BLACK,
+                         font_size=20,
+                         anchor_x="center")
+
         for button in self.button_list:
             button.draw()
 
@@ -294,6 +352,7 @@ class GeometryRain(arcade.View):
         self.all_sprites.draw()
 
     def on_key_press(self, key, modifiers):
+        global game
         """Handle user keyboard input
         Q: Quit the game
         P: Pause/Unpause the game
@@ -310,6 +369,8 @@ class GeometryRain(arcade.View):
 
         if key == arcade.key.P:
             self.paused = not self.paused
+            pause_menu = PauseMenu(self)
+            game.show_view(pause_menu)
 
         if key == arcade.key.SPACE:
             if self.BONUS_AVAILABLE:
