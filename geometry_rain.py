@@ -550,7 +550,7 @@ class GeometryRain(arcade.View):
             arcade.schedule(self.shootBulletsEffect, 1.0)
             self.mystery_effect_start_time = time.time()
         elif self.effect == 4:
-            self.mystery_text = "RUN...\n(you can move up and down)"
+            self.mystery_text = "RUN...(you can move up and down)"
             self.follow_effect_active = True
             self.mystery_effect_start_time = time.time()
         elif self.effect == 5:
@@ -614,6 +614,10 @@ class GeometryRain(arcade.View):
                 self.add_bullet_for_enemy(enemy)
 
     def followEffect(self):
+        arcade.schedule(self.followPlayer, 2.0)
+
+    def followPlayer(self, delta_time: float):
+        arcade.unschedule(self.followPlayer)
         for enemy in self.enemies_list:
             enemy.follow(self.player)
     
