@@ -227,6 +227,77 @@ class GeometryRain(arcade.Window):
 
         self.all_sprites.draw()
 
+    def on_key_press(self, key, modifiers):
+        """Handle user keyboard input
+        Q: Quit the game
+        P: Pause/Unpause the game
+        I/J/K/L: Move Up, Left, Down, Right
+        Arrows: Move Up, Left, Down, Right
+
+        Arguments:
+            symbol {int} -- Which key was pressed
+            modifiers {int} -- Which modifiers were pressed
+        """
+        if key == arcade.key.Q:
+            # Quit immediately
+            arcade.close_window()
+
+        if key == arcade.key.P:
+            self.paused = not self.paused
+
+        if key == arcade.key.SPACE:
+            if self.BONUS_AVAILABLE:
+                if not self.HARDMODE_ACTIVE: # can't use bonus in hardmode ;)
+                    self.bonus_text = ""
+                    self.BONUS_ACTIVE = True
+                    self.BONUS_AVAILABLE = False
+                    self.bonus_count = 0
+                    self.bonus_start_time = time.time()
+
+                    # Ability effect
+                    self.enemy_spawn_time += 0.5
+                    arcade.unschedule(self.add_enemy)
+                    arcade.schedule(self.add_enemy, self.enemy_spawn_time)
+                    self.enemy_pre_change_velocity = self.enemy_velocity
+                    self.enemy_velocity = self.bonus_velocity_change
+                    for enemy in self.enemies_list:
+                        enemy.velocity = self.bonus_velocity_change
+
+
+        #if symbol == arcade.key.W or symbol == arcade.key.UP:
+        #    self.player.change_y = 15
+
+        #if symbol == arcade.key.S or symbol == arcade.key.DOWN:
+        #    self.player.change_y = -15
+
+        if key == arcade.key.A or key == arcade.key.LEFT:
+            self.player.change_x = -self.player_velocity
+        elif key == arcade.key.D or key == arcade.key.RIGHT:
+            self.player.change_x = self.player_velocity
+
+    def on_key_release(self, key: int, modifiers: int):
+        """Undo movement vectors when movement keys are released
+
+        Arguments:
+            symbol {int} -- Which key was pressed
+            modifiers {int} -- Which modifiers were pressed
+        """
+        if (
+            key == arcade.key.W
+            or key == arcade.key.S
+            or key == arcade.key.UP
+            or key == arcade.key.DOWN
+        ):
+            self.player.change_y = 0
+
+        if (
+            key == arcade.key.A
+            or key == arcade.key.D
+            or key == arcade.key.LEFT
+            or key == arcade.key.RIGHT
+        ):
+            self.player.change_x = 0
+
     def countdown(self, delta_time: float):
         if not self.paused:
             self.level_timer -= 1
@@ -409,77 +480,6 @@ class GeometryRain(arcade.Window):
         # Add the bullet to the appropriate lists
         self.bullets_list.append(bullet)
         self.all_sprites.append(bullet)
-
-    def on_key_press(self, key, modifiers):
-        """Handle user keyboard input
-        Q: Quit the game
-        P: Pause/Unpause the game
-        I/J/K/L: Move Up, Left, Down, Right
-        Arrows: Move Up, Left, Down, Right
-
-        Arguments:
-            symbol {int} -- Which key was pressed
-            modifiers {int} -- Which modifiers were pressed
-        """
-        if key == arcade.key.Q:
-            # Quit immediately
-            arcade.close_window()
-
-        if key == arcade.key.P:
-            self.paused = not self.paused
-
-        if key == arcade.key.SPACE:
-            if self.BONUS_AVAILABLE:
-                if not self.HARDMODE_ACTIVE: # can't use bonus in hardmode ;)
-                    self.bonus_text = ""
-                    self.BONUS_ACTIVE = True
-                    self.BONUS_AVAILABLE = False
-                    self.bonus_count = 0
-                    self.bonus_start_time = time.time()
-
-                    # Ability effect
-                    self.enemy_spawn_time += 0.5
-                    arcade.unschedule(self.add_enemy)
-                    arcade.schedule(self.add_enemy, self.enemy_spawn_time)
-                    self.enemy_pre_change_velocity = self.enemy_velocity
-                    self.enemy_velocity = self.bonus_velocity_change
-                    for enemy in self.enemies_list:
-                        enemy.velocity = self.bonus_velocity_change
-
-
-        #if symbol == arcade.key.W or symbol == arcade.key.UP:
-        #    self.player.change_y = 15
-
-        #if symbol == arcade.key.S or symbol == arcade.key.DOWN:
-        #    self.player.change_y = -15
-
-        if key == arcade.key.A or key == arcade.key.LEFT:
-            self.player.change_x = -self.player_velocity
-        elif key == arcade.key.D or key == arcade.key.RIGHT:
-            self.player.change_x = self.player_velocity
-
-    def on_key_release(self, key: int, modifiers: int):
-        """Undo movement vectors when movement keys are released
-
-        Arguments:
-            symbol {int} -- Which key was pressed
-            modifiers {int} -- Which modifiers were pressed
-        """
-        if (
-            key == arcade.key.W
-            or key == arcade.key.S
-            or key == arcade.key.UP
-            or key == arcade.key.DOWN
-        ):
-            self.player.change_y = 0
-
-        if (
-            key == arcade.key.A
-            or key == arcade.key.D
-            or key == arcade.key.LEFT
-            or key == arcade.key.RIGHT
-        ):
-            self.player.change_x = 0
 
     def activateEffect(self):
         if self.effect == 1:
