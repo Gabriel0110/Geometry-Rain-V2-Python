@@ -185,11 +185,11 @@ class GeometryRain(arcade.Window):
             self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.BLACK, 18)
         else:
             arcade.set_background_color(arcade.color.BLACK)
-            self.highscore_text = arcade.draw_text("HIGH SCORE: {}".format(str(self.highscore)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
-            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
-            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 95, arcade.color.BLACK, 18)
-            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.BLACK, 18)
-            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.BLACK, 18)
+            self.highscore_text = arcade.draw_text("HIGH SCORE: {}".format(str(self.highscore)), self.width/2 - 75, self.height - 35, arcade.color.WHITE, 18)
+            self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 65, arcade.color.WHITE, 18)
+            self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 95, arcade.color.WHITE, 18)
+            self.level_text = arcade.draw_text("Level: {}".format(str(self.level)), self.width - 175, self.height - 35, arcade.color.WHITE, 18)
+            self.next_level_text = arcade.draw_text("Next level in: {}".format(str(self.level_timer)), self.width - 175, self.height - 65, arcade.color.WHITE, 18)
 
         # Sanity check to let you know that god mode is active when using it
         if self.GOD_MODE:
@@ -367,8 +367,8 @@ class GeometryRain(arcade.Window):
         if self.paused:
             return
 
-        spawn_check = random.randint(0, 10)
-        if spawn_check == random.randint(0, 10):
+        spawn_check = random.randint(0, 5)
+        if spawn_check == random.randint(0, 5):
             mystery = MysterySprite("images/mystery_sprite.png", 0.3)
 
             # Set its position to a random x position and off-screen at the top
@@ -526,6 +526,7 @@ class TrapSprite(arcade.Sprite):
         return point_value
 
 class MysterySprite(arcade.Sprite):
+    global app
     def update(self):
         super().update()
 
@@ -544,7 +545,6 @@ class MysterySprite(arcade.Sprite):
             self.activateEffect()
 
     def activateEffect(self):
-        #app.effect = 2
         if app.effect == 1:
             app.mystery_text = "SHRINK RAY"
             app.player._set_scale(0.1)
@@ -552,12 +552,12 @@ class MysterySprite(arcade.Sprite):
             app.mystery_effect_start_time = time.time() # last for 10 seconds then go back
         elif app.effect == 2:
             app.mystery_text = "MIND THE GAPS"
-            arcade.schedule(self.balloonEffect, 1.0)
+            arcade.schedule(MysterySprite.balloonEffect, 1.0)
             app.mystery_effect_start_time = time.time()
             #app.enemy_collision_radius = app.enemies_list[0]._get_collision_radius()
         elif app.effect == 3:
             app.mystery_text = "MAKE IT RAIN"
-            arcade.schedule(self.shootBulletsEffect, 1.0)
+            arcade.schedule(MysterySprite.shootBulletsEffect, 1.0)
             app.mystery_effect_start_time = time.time()
         elif app.effect == 4:
             pass
@@ -573,19 +573,22 @@ class MysterySprite(arcade.Sprite):
             app.player._set_collision_radius(app.player._get_collision_radius() * 2)
             app.mystery_effect_start_time = 0
             app.effect = 0
+            app.mysteries_list.remove(self)
         elif app.effect == 2:
+            arcade.unschedule(MysterySprite.balloonEffect)
             app.MYSTERY_EFFECT_ACTIVE = False
-            arcade.unschedule(self.balloonEffect)
             for enemy in app.enemies_list:
                 enemy._set_scale(0.15)
                 #enemy._set_collision_radius(app.enemy_collision_radius)
             app.mystery_effect_start_time = 0
             app.effect = 0
+            app.mysteries_list.remove(self)
         elif app.effect == 3:
+            arcade.unschedule(MysterySprite.shootBulletsEffect)
             app.MYSTERY_EFFECT_ACTIVE = False
-            arcade.unschedule(self.shootBulletsEffect)
             app.mystery_effect_start_time = 0
             app.effect = 0
+            app.mysteries_list.remove(self)
         elif app.effect == 4:
             pass
         elif app.effect == 5:
@@ -593,27 +596,28 @@ class MysterySprite(arcade.Sprite):
         elif app.effect == 6:
             pass
 
-    def balloonEffect(self, delta_time: float):
+    def balloonEffect(delta_time: float):
         if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
             return
 
-        if not app.balloon_on:
-            for enemy in app.enemies_list:
-                enemy._set_scale(0.6)
-                #enemy._set_collision_radius(app.enemy_collision_radius * 4)
-            app.balloon_on = True
-        else:
-            for enemy in app.enemies_list:
-                enemy._set_scale(0.15)
-                #enemy._set_collision_radius(app.enemy_collision_radius)
-            app.balloon_on = False
+        if app.effect == 2:
+            if not app.balloon_on:
+                for enemy in app.enemies_list:
+                    enemy._set_scale(0.6)
+                    #enemy._set_collision_radius(app.enemy_collision_radius * 4)
+                app.balloon_on = True
+            else:
+                for enemy in app.enemies_list:
+                    enemy._set_scale(0.15)
+                    #enemy._set_collision_radius(app.enemy_collision_radius)
+                app.balloon_on = False
 
-    def shootBulletsEffect(self, delta_time: float):
+    def shootBulletsEffect(delta_time: float):
         if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
             return
-
-        for enemy in app.enemies_list:
-            app.add_bullet_for_enemy(enemy)
+        if app.effect == 3:
+            for enemy in app.enemies_list:
+                app.add_bullet_for_enemy(enemy)
 
 class Bullet(arcade.Sprite):
     def update(self):
