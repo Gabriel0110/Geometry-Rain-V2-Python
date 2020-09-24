@@ -157,6 +157,11 @@ class GeometryRain(arcade.Window):
                 for enemy in self.enemies_list:
                     enemy.velocity = self.enemy_pre_change_velocity
 
+        # Check if mystery duration ran out
+        if self.MYSTERY_EFFECT_ACTIVE:
+            if (time.time() - self.mystery_effect_start_time) >= 10:
+                self.removeEffect()
+
         # Update everything
         self.all_sprites.update()
 
@@ -369,18 +374,22 @@ class GeometryRain(arcade.Window):
 
         spawn_check = random.randint(0, 5)
         if spawn_check == random.randint(0, 5):
-            mystery = MysterySprite("images/mystery_sprite.png", 0.3)
+            self.MYSTERY_EFFECT_ACTIVE = True
+            self.effect = random.choice([1, 2, 3, 4, 5, 6])
+            self.activateEffect()
 
-            # Set its position to a random x position and off-screen at the top
-            mystery.top = random.randint(self.height, self.height + 80)
-            mystery.left = random.randint(10, self.width - 10)
+            # mystery = MysterySprite("images/mystery_sprite.png", 0.3)
 
-            # Set its speed to a random speed heading down
-            mystery.velocity = (0, -5)
+            # # Set its position to a random x position and off-screen at the top
+            # mystery.top = random.randint(self.height, self.height + 80)
+            # mystery.left = random.randint(10, self.width - 10)
 
-            # Add it to the enemies list and all_sprites list
-            self.mysteries_list.append(mystery)
-            self.all_sprites.append(mystery)
+            # # Set its speed to a random speed heading down
+            # mystery.velocity = (0, -5)
+
+            # # Add it to the enemies list and all_sprites list
+            # self.mysteries_list.append(mystery)
+            # self.all_sprites.append(mystery)
         else:
             return # no spawn
 
@@ -472,6 +481,78 @@ class GeometryRain(arcade.Window):
         ):
             self.player.change_x = 0
 
+    def activateEffect(self):
+        if self.effect == 1:
+            self.mystery_text = "SHRINK RAY"
+            self.player._set_scale(0.1)
+            self.player._set_collision_radius(self.player._get_collision_radius() / 2)
+            self.mystery_effect_start_time = time.time() # last for 10 seconds then go back
+        elif self.effect == 2:
+            self.mystery_text = "MIND THE GAPS"
+            arcade.schedule(self.balloonEffect, 1.0)
+            self.mystery_effect_start_time = time.time()
+            #app.enemy_collision_radius = app.enemies_list[0]._get_collision_radius()
+        elif self.effect == 3:
+            self.mystery_text = "MAKE IT RAIN"
+            arcade.schedule(self.shootBulletsEffect, 1.0)
+            self.mystery_effect_start_time = time.time()
+        elif self.effect == 4:
+            pass
+        elif self.effect == 5:
+            pass
+        elif self.effect == 6:
+            pass
+
+    def removeEffect(self):
+        if self.effect == 1:
+            self.MYSTERY_EFFECT_ACTIVE = False
+            self.player._set_scale(0.25)
+            self.player._set_collision_radius(self.player._get_collision_radius() * 2)
+            self.mystery_effect_start_time = 0
+            self.effect = 0
+        elif self.effect == 2:
+            arcade.unschedule(self.balloonEffect)
+            self.MYSTERY_EFFECT_ACTIVE = False
+            for enemy in self.enemies_list:
+                enemy._set_scale(0.15)
+                #enemy._set_collision_radius(app.enemy_collision_radius)
+            self.mystery_effect_start_time = 0
+            self.effect = 0
+        elif self.effect == 3:
+            arcade.unschedule(self.shootBulletsEffect)
+            self.MYSTERY_EFFECT_ACTIVE = False
+            self.mystery_effect_start_time = 0
+            self.effect = 0
+        elif self.effect == 4:
+            pass
+        elif self.effect == 5:
+            pass
+        elif self.effect == 6:
+            pass
+
+    def balloonEffect(self, delta_time: float):
+        if self.paused or not self.MYSTERY_EFFECT_ACTIVE:
+            return
+
+        if self.effect == 2:
+            if not self.balloon_on:
+                for enemy in self.enemies_list:
+                    enemy._set_scale(0.6)
+                    #enemy._set_collision_radius(app.enemy_collision_radius * 4)
+                self.balloon_on = True
+            else:
+                for enemy in self.enemies_list:
+                    enemy._set_scale(0.15)
+                    #enemy._set_collision_radius(app.enemy_collision_radius)
+                self.balloon_on = False
+
+    def shootBulletsEffect(self, delta_time: float):
+        if self.paused or not self.MYSTERY_EFFECT_ACTIVE:
+            return
+        if self.effect == 3:
+            for enemy in self.enemies_list:
+                self.add_bullet_for_enemy(enemy)
+
 class EnemySprite(arcade.Sprite):
     def update(self):
         """Update the position of the sprite"""
@@ -524,100 +605,6 @@ class TrapSprite(arcade.Sprite):
     def getPointValue(self):
         point_value = -500 # WILL LOSE 500
         return point_value
-
-class MysterySprite(arcade.Sprite):
-    global app
-    def update(self):
-        super().update()
-
-        if app.MYSTERY_EFFECT_ACTIVE:
-            if (time.time() - app.mystery_effect_start_time) >= 10:
-                self.removeEffect()
-
-        if self.bottom <= 5:
-            self.remove_from_sprite_lists()
-
-        if self.collides_with_sprite(app.player):
-            # MYSTERY EFFECT
-            self.remove_from_sprite_lists()
-            app.MYSTERY_EFFECT_ACTIVE = True
-            app.effect = random.choice([1, 2, 3, 4, 5, 6])
-            self.activateEffect()
-
-    def activateEffect(self):
-        if app.effect == 1:
-            app.mystery_text = "SHRINK RAY"
-            app.player._set_scale(0.1)
-            app.player._set_collision_radius(app.player._get_collision_radius() / 2)
-            app.mystery_effect_start_time = time.time() # last for 10 seconds then go back
-        elif app.effect == 2:
-            app.mystery_text = "MIND THE GAPS"
-            arcade.schedule(MysterySprite.balloonEffect, 1.0)
-            app.mystery_effect_start_time = time.time()
-            #app.enemy_collision_radius = app.enemies_list[0]._get_collision_radius()
-        elif app.effect == 3:
-            app.mystery_text = "MAKE IT RAIN"
-            arcade.schedule(MysterySprite.shootBulletsEffect, 1.0)
-            app.mystery_effect_start_time = time.time()
-        elif app.effect == 4:
-            pass
-        elif app.effect == 5:
-            pass
-        elif app.effect == 6:
-            pass
-
-    def removeEffect(self):
-        if app.effect == 1:
-            app.MYSTERY_EFFECT_ACTIVE = False
-            app.player._set_scale(0.25)
-            app.player._set_collision_radius(app.player._get_collision_radius() * 2)
-            app.mystery_effect_start_time = 0
-            app.effect = 0
-            app.mysteries_list.remove(self)
-        elif app.effect == 2:
-            arcade.unschedule(MysterySprite.balloonEffect)
-            app.MYSTERY_EFFECT_ACTIVE = False
-            for enemy in app.enemies_list:
-                enemy._set_scale(0.15)
-                #enemy._set_collision_radius(app.enemy_collision_radius)
-            app.mystery_effect_start_time = 0
-            app.effect = 0
-            app.mysteries_list.remove(self)
-        elif app.effect == 3:
-            arcade.unschedule(MysterySprite.shootBulletsEffect)
-            app.MYSTERY_EFFECT_ACTIVE = False
-            app.mystery_effect_start_time = 0
-            app.effect = 0
-            app.mysteries_list.remove(self)
-        elif app.effect == 4:
-            pass
-        elif app.effect == 5:
-            pass
-        elif app.effect == 6:
-            pass
-
-    def balloonEffect(delta_time: float):
-        if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
-            return
-
-        if app.effect == 2:
-            if not app.balloon_on:
-                for enemy in app.enemies_list:
-                    enemy._set_scale(0.6)
-                    #enemy._set_collision_radius(app.enemy_collision_radius * 4)
-                app.balloon_on = True
-            else:
-                for enemy in app.enemies_list:
-                    enemy._set_scale(0.15)
-                    #enemy._set_collision_radius(app.enemy_collision_radius)
-                app.balloon_on = False
-
-    def shootBulletsEffect(delta_time: float):
-        if app.paused or not app.MYSTERY_EFFECT_ACTIVE:
-            return
-        if app.effect == 3:
-            for enemy in app.enemies_list:
-                app.add_bullet_for_enemy(enemy)
 
 class Bullet(arcade.Sprite):
     def update(self):
