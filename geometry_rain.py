@@ -312,7 +312,7 @@ class GeometryRain(arcade.View):
         arcade.start_render()
 
         # Draw scoreboard text
-        if not self.HARDMODE_ACTIVE:
+        if self.HARDMODE_ACTIVE == False:
             self.highscore_text = arcade.draw_text("HIGH SCORE: {}".format(str(self.highscore)), self.width/2 - 75, self.height - 35, arcade.color.BLACK, 18)
             self.score_text = arcade.draw_text("SCORE: {}".format(str(self.score)), self.width/2 - 75, self.height - 65, arcade.color.BLACK, 18)
             self.bonus_streak_text = arcade.draw_text("Bonus Streak: {}/5".format(str(self.bonus_count)), self.width/2 - 75, self.height - 95, arcade.color.BLACK, 18)
@@ -466,7 +466,7 @@ class GeometryRain(arcade.View):
         self.level += 1
 
         # HARD MODE
-        if self.level % 3 == 0 and self.HARDMODE_ACTIVE == False:
+        if self.level % 3 == 0:
             # Stop all spawning for 5 seconds, give it some suspense, change background color to black, then start hard mode dropping
             self.hardMode()
         else:
@@ -479,14 +479,15 @@ class GeometryRain(arcade.View):
             self.enemy_velocity = new_velocity
 
     def hardMode(self):
-        self.MYSTERY_EFFECT_ACTIVE = False
-        self.removeEffect()
-        self.HARDMODE_ACTIVE = True
-
-        arcade.set_background_color(arcade.color.BLACK)
+        # self.MYSTERY_EFFECT_ACTIVE = False
+        # self.removeEffect()
 
         # Change level timer
         self.level_timer = self.hardmode_duration
+
+        self.HARDMODE_ACTIVE = True
+
+        #arcade.set_background_color(arcade.color.BLACK)
 
         self.hardmode_start_time = time.time()
 
@@ -580,10 +581,13 @@ class GeometryRain(arcade.View):
 
         spawn_check = random.randint(0, 3)
         if spawn_check == random.randint(0, 3):
-            if self.HARDMODE_ACTIVE == False:
-                self.MYSTERY_EFFECT_ACTIVE = True
-                self.effect = random.choice([1, 2, 3, 4, 5, 6])
-                self.activateEffect()
+            if (self.HARDMODE_ACTIVE == False):
+                if ((self.level + 1) % 3 == 0 and self.level_timer < 13):
+                    return
+                else:
+                    self.MYSTERY_EFFECT_ACTIVE = True
+                    self.effect = random.choice([1, 2, 3, 4, 5, 6])
+                    self.activateEffect()
         else:
             return # no spawn
 
