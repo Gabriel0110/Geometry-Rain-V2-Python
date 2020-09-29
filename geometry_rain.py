@@ -520,7 +520,7 @@ class GeometryRain(arcade.View):
         self.hardmode_start_time = time.time()
 
         # Increase spawn rate
-        self.enemy_spawn_time = 0.5 / (self.level * 0.7)
+        self.enemy_spawn_time = (0.5 / (self.level * 0.7)) if self.level <= 12 else (0.5 / (self.level * 0.2))
         arcade.unschedule(self.add_enemy)
         arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
