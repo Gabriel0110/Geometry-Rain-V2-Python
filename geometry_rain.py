@@ -169,6 +169,11 @@ class GeometryRain(arcade.View):
 
         self.paused = False
 
+        self.right_key_down = False
+        self.left_key_down = False
+        self.up_key_down = False
+        self.down_key_down = False
+
         # Init score for scoreboard
         self.score = 0
         self.highscore = 0
@@ -361,7 +366,7 @@ class GeometryRain(arcade.View):
         
         # Draw placeholder text for bonus notification
         if self.BONUS_AVAILABLE:
-            arcade.draw_text(self.bonus_text, self.width/2, self.height*0.05, arcade.color.BLACK, 18, anchor_x="center")
+            arcade.draw_text(self.bonus_text, self.width/2, self.height*0.125, arcade.color.BLACK, 18, anchor_x="center")
 
         if self.MYSTERY_EFFECT_ACTIVE:
             color = arcade.color.BLACK if not self.HARDMODE_ACTIVE else arcade.color.WHITE
@@ -426,12 +431,16 @@ class GeometryRain(arcade.View):
 
         if key == arcade.key.A or key == arcade.key.LEFT:
             self.player.change_x = -self.player_velocity
+            self.left_key_down = True
         elif key == arcade.key.D or key == arcade.key.RIGHT:
             self.player.change_x = self.player_velocity
+            self.right_key_down = True
         elif (key == arcade.key.W or key == arcade.key.UP) and self.VERTICAL_MOVEMENT:
             self.player.change_y = self.player_velocity
+            self.up_key_down = True
         elif (key == arcade.key.S or key == arcade.key.DOWN) and self.VERTICAL_MOVEMENT:
             self.player.change_y = -self.player_velocity
+            self.down_key_down = True
 
     def on_key_release(self, key: int, modifiers: int):
         """Undo movement vectors when movement keys are released
@@ -439,21 +448,31 @@ class GeometryRain(arcade.View):
             symbol {int} -- Which key was pressed
             modifiers {int} -- Which modifiers were pressed
         """
-        if (
-            key == arcade.key.W
-            or key == arcade.key.S
-            or key == arcade.key.UP
-            or key == arcade.key.DOWN
-        ):
-            self.player.change_y = 0
 
-        if (
-            key == arcade.key.A
-            or key == arcade.key.D
-            or key == arcade.key.LEFT
-            or key == arcade.key.RIGHT
-        ):
-            self.player.change_x = 0
+        if key == arcade.key.A or key == arcade.key.LEFT:
+            self.left_key_down = False
+            if self.right_key_down:
+                return
+            else:
+                self.player.change_x = 0
+        elif key == arcade.key.D or key == arcade.key.RIGHT:
+            self.right_key_down = False
+            if self.left_key_down:
+                return
+            else:
+                self.player.change_x = 0
+        elif (key == arcade.key.W or key == arcade.key.UP) and self.VERTICAL_MOVEMENT:
+            self.up_key_down = False
+            if self.down_key_down:
+                return
+            else:
+                self.player.change_y = 0
+        elif (key == arcade.key.S or key == arcade.key.DOWN) and self.VERTICAL_MOVEMENT:
+            self.down_key_down = False
+            if self.up_key_down:
+                return
+            else:
+                self.player.change_y = 0
 
     def countdown(self, delta_time: float):
         if not self.paused:
