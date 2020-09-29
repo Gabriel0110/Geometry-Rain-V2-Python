@@ -23,6 +23,23 @@ def getButtonThemes():
     theme.add_button_textures(normal, hover, clicked, locked)
     return theme
 
+def getHighScore():
+    try:
+        with open('saved_score.dat', 'rb') as file:
+            highscore = pickle.load(file)
+    except Exception as e:
+        print(f"Error attempting to load saved highscore: {e}")
+        print("Setting highscore to 0.")
+        highscore = 0
+    return highscore
+
+def saveHighScore():
+    try:
+        with open('saved_score.dat', 'wb') as file:
+            pickle.dump(app.score, file)
+    except Exception as e:
+        print(e)
+
 class PlayButton(TextButton):
     def __init__(self, view, x=0, y=0, width=100, height=40, text="Play", theme=None):
         super().__init__(x, y, width, height, text, theme=theme)
@@ -62,10 +79,17 @@ class QuitButton(TextButton):
     def on_press(self):
         global game, app
         app.paused = False
+        self.saveScore()
         game.show_view(MainMenu())
+
+    def saveScore(self):
+        global game, app
+        if app.score >= app.highscore:
+            saveHighScore()
 
 class MainMenu(arcade.View):
     def __init__(self):
+        global game
         super().__init__()
 
         self.theme = getButtonThemes()
@@ -74,14 +98,17 @@ class MainMenu(arcade.View):
 
         self.background = arcade.load_texture("images/title_screen.jpg")
 
+        self.highscore = getHighScore()
+
     def on_show(self):
         arcade.set_background_color(arcade.color.GRAY)
 
     def on_draw(self):
         arcade.start_render()
-        scale = SCREEN_WIDTH / self.background.width
+        #scale = SCREEN_WIDTH / self.background.width
         arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
-        arcade.draw_text("GEOMETRY RAIN", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.7, arcade.color.WHITE, font_size=60, font_name='GOTHIC', anchor_x="center", bold=True)
+        arcade.draw_text("GEOMETRY RAIN", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.85, arcade.color.WHITE, font_size=72, font_name='GOTHIC', anchor_x="center", bold=True)
+        arcade.draw_text(f"High Score: {self.highscore}", SCREEN_WIDTH/2, SCREEN_HEIGHT*0.7, arcade.color.WHITE, font_size=48, font_name='GOTHIC', anchor_x="center", bold=True)
         for button in self.button_list:
             button.draw()
 
@@ -155,6 +182,7 @@ class GeometryRain(arcade.View):
         self.bonus_text = ""
 
         self.enemy_spawn_time = 0.5
+        self.current_spawn_time = 0.5
         self.bonus_spawn_time = 8.0
         self.trap_spawn_time = 3.0
         self.point_increase_time = 0.5
@@ -169,6 +197,7 @@ class GeometryRain(arcade.View):
         self.enemy_velocity = (0, random.randint(-7, -3))
         self.player_velocity = 15
         self.bonus_velocity_change = (0, -2)
+        self.level_velocity_change = 0.0
         
         self.HARDMODE_ACTIVE = False
         self.hardmode_start_time = 0
@@ -187,6 +216,7 @@ class GeometryRain(arcade.View):
         self.balloon_on = False
         self.mystery_text = ""
         self.follow_effect_active = False
+        self.VERTICAL_MOVEMENT = False
         self.shrinkray20 = False
         self.player_shoot_active = False
 
@@ -197,13 +227,7 @@ class GeometryRain(arcade.View):
         """Get the game ready to play
         """
         # See if there is a previous score to load for high score
-        try:
-            with open('saved_score.dat', 'rb') as file:
-                self.highscore = pickle.load(file)
-        except Exception as e:
-            print(f"Error attempting to load saved highscore: {e}")
-            print("Setting highscore to 0.")
-            self.highscore = 0
+        self.highscore = getHighScore()
 
         # Set the background color
         arcade.set_background_color(arcade.color.SKY_BLUE)
@@ -239,7 +263,6 @@ class GeometryRain(arcade.View):
         global app, game
         """Update the positions and statuses of all game objects
         If paused, do nothing
-
         Arguments:
             delta_time {float} -- Time since the last update
         """
@@ -253,8 +276,7 @@ class GeometryRain(arcade.View):
             if not self.GOD_MODE:
                 # Save the highscore and end the game
                 if self.score >= self.highscore:
-                    with open('saved_score.dat', 'wb') as file:
-                        pickle.dump(self.score, file)
+                    saveHighScore()
                 game.show_view(MainMenu())
 
         # Check if bonus streak if 5 to award bonus ability
@@ -265,7 +287,10 @@ class GeometryRain(arcade.View):
         
         # Check if duration ran out and end bonus if so, resetting values
         if self.BONUS_ACTIVE:
-            if (time.time() - self.bonus_start_time) >= 10:
+            if self.HARDMODE_ACTIVE:
+                self.BONUS_ACTIVE = False
+                self.bonus_start_time = 0
+            elif (time.time() - self.bonus_start_time) >= 10:
                 print("Bonus ran out of time -- ending bonus ability.")
                 self.BONUS_ACTIVE = False
                 self.bonus_start_time = 0
@@ -277,7 +302,8 @@ class GeometryRain(arcade.View):
                     enemy.velocity = self.enemy_pre_change_velocity
 
         if self.follow_effect_active == True:
-            self.followEffect()
+            for enemy in self.enemies_list:
+                enemy.follow(self.player)
 
         if self.shrinkray20 == True:
             for enemy in self.enemies_list:
@@ -367,7 +393,6 @@ class GeometryRain(arcade.View):
         P: Pause/Unpause the game
         I/J/K/L: Move Up, Left, Down, Right
         Arrows: Move Up, Left, Down, Right
-
         Arguments:
             symbol {int} -- Which key was pressed
             modifiers {int} -- Which modifiers were pressed
@@ -403,14 +428,13 @@ class GeometryRain(arcade.View):
             self.player.change_x = -self.player_velocity
         elif key == arcade.key.D or key == arcade.key.RIGHT:
             self.player.change_x = self.player_velocity
-        elif (key == arcade.key.W or key == arcade.key.UP) and self.follow_effect_active:
+        elif (key == arcade.key.W or key == arcade.key.UP) and self.VERTICAL_MOVEMENT:
             self.player.change_y = self.player_velocity
-        elif (key == arcade.key.S or key == arcade.key.DOWN) and self.follow_effect_active:
+        elif (key == arcade.key.S or key == arcade.key.DOWN) and self.VERTICAL_MOVEMENT:
             self.player.change_y = -self.player_velocity
 
     def on_key_release(self, key: int, modifiers: int):
         """Undo movement vectors when movement keys are released
-
         Arguments:
             symbol {int} -- Which key was pressed
             modifiers {int} -- Which modifiers were pressed
@@ -437,7 +461,7 @@ class GeometryRain(arcade.View):
             if self.level_timer < 0 and self.HARDMODE_ACTIVE == True:
                 self.HARDMODE_ACTIVE = False
                 arcade.set_background_color(arcade.color.SKY_BLUE)
-                self.enemy_spawn_time = 0.5
+                self.enemy_spawn_time = self.current_spawn_time
                 arcade.unschedule(self.add_enemy)
                 arcade.schedule(self.add_enemy, self.enemy_spawn_time)
                 self.hardmode_start_time = 0
@@ -474,13 +498,17 @@ class GeometryRain(arcade.View):
 
         # Increase enemy movement speed slightly if not in hardmode
         if self.HARDMODE_ACTIVE == False:
-            new_velocity = (0, list(self.enemy_velocity)[1] - 0.7)
-            self.enemy_pre_change_velocity = new_velocity
-            self.enemy_velocity = new_velocity
+            self.level_velocity_change += 0.2
+
+            # Increase spawn rate
+            self.enemy_spawn_time -= self.enemy_spawn_time * 0.06
+            self.current_spawn_time = self.enemy_spawn_time
+            arcade.unschedule(self.add_enemy)
+            arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
     def hardMode(self):
-        # self.MYSTERY_EFFECT_ACTIVE = False
-        # self.removeEffect()
+        #self.MYSTERY_EFFECT_ACTIVE = False
+        #self.removeEffect()
 
         # Change level timer
         self.level_timer = self.hardmode_duration
@@ -492,7 +520,7 @@ class GeometryRain(arcade.View):
         self.hardmode_start_time = time.time()
 
         # Increase spawn rate
-        self.enemy_spawn_time = 0.05
+        self.enemy_spawn_time = 0.5 / (self.level * 0.7)
         arcade.unschedule(self.add_enemy)
         arcade.schedule(self.add_enemy, self.enemy_spawn_time)
 
@@ -500,7 +528,6 @@ class GeometryRain(arcade.View):
 
     def add_enemy(self, delta_time: float):
         """Adds a new enemy to the screen
-
         Arguments:
             delta_time {float} -- How much time has passed since the last call
         """
@@ -517,6 +544,8 @@ class GeometryRain(arcade.View):
             if not self.HARDMODE_ACTIVE:
                 # Everything is normal play - set velocity to new random
                 self.enemy_velocity = (0, random.randint(-7, -3))
+                new_velocity = (0, list(self.enemy_velocity)[1] - self.level_velocity_change)
+                self.enemy_velocity = new_velocity
 
         # First, create the new enemy sprite
         enemy = EnemySprite("images/enemy_sprite.png", 0.15)
@@ -579,8 +608,8 @@ class GeometryRain(arcade.View):
         if self.paused:
             return
 
-        spawn_check = random.randint(0, 3)
-        if spawn_check == random.randint(0, 3):
+        spawn_check = random.randint(0, 0)
+        if spawn_check == random.randint(0, 0):
             if (self.HARDMODE_ACTIVE == False):
                 if ((self.level + 1) % 3 == 0 and self.level_timer < 13):
                     return
@@ -624,7 +653,7 @@ class GeometryRain(arcade.View):
             self.mystery_effect_start_time = time.time()
         elif self.effect == 4:
             self.mystery_text = "RUN...(you can move up and down)"
-            self.follow_effect_active = True
+            self.followEffect()
             self.mystery_effect_start_time = time.time()
         elif self.effect == 5:
             self.mystery_text = "SHRINK RAY 2.0"
@@ -657,6 +686,7 @@ class GeometryRain(arcade.View):
             self.effect = 0
         elif self.effect == 4:
             self.follow_effect_active = False
+            self.VERTICAL_MOVEMENT = False
             self.mystery_effect_start_time = 0
             self.effect = 0
             for sprite in self.enemies_list:
@@ -700,11 +730,11 @@ class GeometryRain(arcade.View):
 
     def followEffect(self):
         arcade.schedule(self.followPlayer, 2.0)
+        self.VERTICAL_MOVEMENT = True
 
     def followPlayer(self, delta_time: float):
         arcade.unschedule(self.followPlayer)
-        for enemy in self.enemies_list:
-            enemy.follow(self.player)
+        self.follow_effect_active = True
 
     def playerShootEffect(self, delta_time: float):
         global app
@@ -799,7 +829,7 @@ class BonusSprite(arcade.Sprite):
                 app.TRAP_HIT = False
     
     def getPointValue(self):
-        point_value = 500
+        point_value = 2500
         return point_value
 
 class TrapSprite(arcade.Sprite):
@@ -817,7 +847,7 @@ class TrapSprite(arcade.Sprite):
             app.player_velocity = 3
     
     def getPointValue(self):
-        point_value = -500 # WILL LOSE 500
+        point_value = -1000 # WILL LOSE 500
         return point_value
 
 class Bullet(arcade.Sprite):
