@@ -414,6 +414,7 @@ class GeometryRain(arcade.View):
         if key == arcade.key.SPACE:
             if self.BONUS_AVAILABLE:
                 if not self.HARDMODE_ACTIVE: # can't use bonus in hardmode ;)
+                    self.score += 10000
                     self.bonus_text = ""
                     self.BONUS_ACTIVE = True
                     self.BONUS_AVAILABLE = False
